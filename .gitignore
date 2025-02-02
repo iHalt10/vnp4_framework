@@ -1,0 +1,14 @@
+# Usage:
+# First, copy the necessary "gitignore" files from "https://github.com/github/gitignore"
+# and "git commit" them. After that, change duplicate lines, etc.
+#
+# Supported gitignore are "My Project".
+# For MacOS, Vim, Emamcs, and others, please use "~/.config/git/ignore".
+
+#########################################################################
+# My Project
+#########################################################################
+sw/**/driver/
+sw/**/bin/
+p4-drivers/
+*.o
