@@ -107,7 +107,7 @@ For the Architecture's `USER_PLUGIN`, specify one of the following:
 ### Program MCS/BIT Files
 
 ```shell
-$ make program-bit # and hot reboot
+$ make program-bit # and warm reboot
 # or
 $ make program-mcs # and cold reboot
 ```
