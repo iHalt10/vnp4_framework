@@ -83,10 +83,10 @@ control MyProcessing(
 
         if (metadata.from_direction == DIRECTION_PF) {
             metadata.dst_pf = 0;
-            metadata.dst_cmac = 0;
+            metadata.dst_cmac = 1;
             metadata.to_direction = DIRECTION_CMAC;
         } else {
-            metadata.dst_pf = 0;
+            metadata.dst_pf = 1;
             metadata.dst_cmac = 0;
             metadata.to_direction = DIRECTION_PF;
         }
