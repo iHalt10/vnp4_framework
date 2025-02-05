@@ -35,14 +35,7 @@ module p2p_250mhz #(
     .rstn         (axil_aresetn)
   );
 
-  xpm_cdc_async_rst #(
-    .DEST_SYNC_FF(4),
-    .RST_ACTIVE_HIGH(0)
-  ) axis_rstn_cdc (
-    .src_arst(axil_aresetn),
-    .dest_clk(axis_aclk),
-    .dest_arst(axis_aresetn)
-  );
+  assign axis_aresetn = axil_aresetn;
 
   ingress_switch #(
     .NUM_PHYS_FUNC(NUM_PHYS_FUNC),
