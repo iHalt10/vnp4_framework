@@ -9,9 +9,10 @@
 #   $ make sw          # Build table management sw based on p4-drivers
 #   $ make log         # Show open-nic-shell/script/vivado.log
 #   $ make ide         # Open vivado GUI
+#   $ make clean-log   # Remove vivado log files
 #   $ make clean       # Remove all generated files
 ################################################################################
-.PHONY: all program-bit program-mcs p4-drivers sw log ide clean
+.PHONY: all program-bit program-mcs p4-drivers sw log ide clean-log clean
 
 ###########################################################################
 ##### OpenNIC Build Script Options (open-nic-shell/script/build.tcl)
@@ -99,7 +100,10 @@ log:
 ide: open-nic-shell/build/$(BOARD)_$(TAG)/open_nic_shell/open_nic_shell.xpr
 	vivado open-nic-shell/build/$(BOARD)_$(TAG)/open_nic_shell/open_nic_shell.xpr &
 
-clean:
+clean-log:
+	rm -f vivado*.log vivado*.jou vivado*.str
+
+clean: clean-log
 	rm -rf ./p4-drivers
 	cd sw/rx_only_250 && make clean-all
 	cd sw/shared_txrx_250 && make clean-all
