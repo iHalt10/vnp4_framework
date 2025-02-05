@@ -12,3 +12,6 @@ sw/**/driver/
 sw/**/bin/
 p4-drivers/
 *.o
+vivado*.log
+vivado*.jou
+vivado*.str
