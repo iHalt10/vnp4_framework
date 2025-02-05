@@ -12,11 +12,11 @@ module p2p_250mhz #(
   axi_stream_if.master m_axis_adap_tx_250mhz[NUM_CMAC_PORT],
   axi_stream_if.slave  s_axis_adap_rx_250mhz[NUM_CMAC_PORT],
 
-  input                     mod_rstn,
-  output                    mod_rst_done,
+  input                mod_rstn,
+  output               mod_rst_done,
 
-  input                     axil_aclk,
-  input                     axis_aclk
+  input                axil_aclk,
+  input                axis_aclk
 );
 
   axi_stream_vnp4_if axis_vnp4_in();
