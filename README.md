@@ -3,31 +3,11 @@ The framework integrates VitisNetP4 with OpenNIC Shell to compile P4 code into h
 
 ## Architectures
 
-### rx_only_250
-
-![rx_only_250](images/rx_only_250.png)
-
-The number of Physical Functions can be modified using `NUM_PHYS_FUNC` in the Makefile.
-The number of CMACs can be modified using `NUM_CMAC_PORT` in the Makefile.
-The maximum number of CMACs depends on the target device and supports the following:
-
-- Max `NUM_CMAC_PORT`:
-    - Alveo U50: 1
-    - Alveo U55N: 2
-    - Alveo U55C: 2
-    - Alveo U200: 2
-    - Alveo U250: 2
-    - Alveo U280: 2
-    - Alveo U45N: 2
-
-Note that `NUM_PHYS_FUNC` and `NUM_CMAC_PORT` must be set to the same value.
-
-When running two instances of Vitis Net P4, they will execute the same P4 program and share the same P4 Table entries.
-
 ### shared_txrx_250
 
 ![shared_txrx_250](images/shared_txrx_250.png)
 
+In the P4 program, any port can forward traffic by specifying the destination ID for each port (PF 0, CMAC 0, etc.).
 The number of Physical Functions can be modified using `NUM_PHYS_FUNC` in the Makefile, with a maximum support of 4 functions.
 The number of CMACs can be modified using `NUM_CMAC_PORT` in the Makefile.
 The maximum number of CMACs depends on the target device and supports the following:
@@ -45,7 +25,7 @@ The maximum number of CMACs depends on the target device and supports the follow
 
 ### Preparation
 
-#### Install Vitis/Vivado 2023.2.2
+#### Install Vitis/Vivado 2024.2.2
 
 For GUI installation, enable the `Vitis Networking P4` checkbox under `Design Tools`.
 For CLI installation, modify the `Modules=` entry in `install_config.txt` from `Vitis Networking P4:0` to `Vitis Networking P4:1`.
@@ -87,7 +67,7 @@ SYNTH_IP        := 1
 IMPL            := 1
 POST_IMPL       := 1
 
-USER_PLUGIN     := $(abspath user_plugin/rx_only_250)
+USER_PLUGIN     := $(abspath user_plugin/shared_txrx_250)
 
 ## Design parameters
 BUILD_TIMESTAMP := $(shell date +%y%m%d%H%M)
@@ -101,7 +81,6 @@ NUM_CMAC_PORT   := 1
 For detailed explanation of these options, refer to [Build Script Options (Github: OpenNIC Shell)](https://github.com/Xilinx/open-nic-shell?tab=readme-ov-file#build-script-options).
 
 For the Architecture's `USER_PLUGIN`, specify one of the following:
-- rx_only_250: `$(abspath user_plugin/rx_only_250)`
 - shared_txrx_250: `$(abspath user_plugin/shared_txrx_250)`
 
 ### Program MCS/BIT Files
@@ -131,10 +110,6 @@ $ make sw
 ```
 The following binaries will be generated:
 
-- rx_only_250: sw/rx_only_250/bin
-    - find_entry (doesn't work)
-    - get_table_mode
-    - insert
 - shared_txrx_250: sw/shared_txrx_250/bin
     - find_entry (doesn't work)
     - get_table_mode

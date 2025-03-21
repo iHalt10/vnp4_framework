@@ -55,10 +55,24 @@ control MyProcessing(
         standard_metadata.drop = 1;
     }
 
+    action replace_src(bit<48> addr) {
+        headers.ethernet.src_addr = addr;
+    }
+
+    table mac_addrs {
+        key     = { headers.ethernet.src_addr : exact; }
+        actions = { replace_src; }
+        size    = 8;
+    }
+
     apply {
         if (standard_metadata.parser_error != error.NoError) {
             drop();
             return;
+        }
+
+        if (headers.ethernet.isValid()) {
+            mac_addrs.apply();
         }
 
         if (metadata.ingress_port == 0) {

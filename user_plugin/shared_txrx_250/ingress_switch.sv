@@ -2,52 +2,53 @@
 
 `include "open_nic_shell_macros.vh"
 
-import direction_pkg::PF;
-import direction_pkg::CMAC;
-
 module ingress_switch #(
+  parameter int NUM_QDMA = 1,
   parameter int NUM_PHYS_FUNC = 1,
   parameter int NUM_CMAC_PORT = 1
 ) (
-  axi_stream_if.slave       s_axis_pf[NUM_PHYS_FUNC],
+  axi_stream_if.slave       s_axis_pf[NUM_QDMA * NUM_PHYS_FUNC],
   axi_stream_if.slave       s_axis_cmac[NUM_CMAC_PORT],
   axi_stream_vnp4_if.master m_axis,
   input aclk,
   input aresetn
 );
 
-  localparam int NUM_SLAVES = NUM_PHYS_FUNC + NUM_CMAC_PORT;
+  localparam int NUM_SLAVES = NUM_QDMA * NUM_PHYS_FUNC + NUM_CMAC_PORT;
 
   wire [NUM_SLAVES-1:0]     s_axis_tvalid;
   wire [512*NUM_SLAVES-1:0] s_axis_tdata;
   wire [64*NUM_SLAVES-1:0]  s_axis_tkeep;
   wire [NUM_SLAVES-1:0]     s_axis_tlast;
-  wire [49*NUM_SLAVES-1:0]  s_axis_tuser;
+  wire [20*NUM_SLAVES-1:0]  s_axis_tuser;
   wire [NUM_SLAVES-1:0]     s_axis_tready;
 
   wire        axis_tvalid;
   wire [48:0] axis_tuser;
 
-  generate for (genvar i = 0; i < NUM_PHYS_FUNC; i++) begin
-    assign s_axis_tdata[`getvec(512, i)] = s_axis_pf[i].data;
-    assign s_axis_tkeep[`getvec(64, i)]  = s_axis_pf[i].keep;
-    assign s_axis_tuser[`getvec(49, i)]  = {PF, s_axis_pf[i].user_dst, s_axis_pf[i].user_src, s_axis_pf[i].user_size};
-    assign s_axis_tlast[i]               = s_axis_pf[i].last;
-    assign s_axis_tvalid[i]              = s_axis_pf[i].valid;
+  generate
+    for (genvar i = 0; i < NUM_QDMA; i++) begin
+      for (genvar j = 0; j < NUM_PHYS_FUNC; j++) begin
+        localparam int k = i * NUM_PHYS_FUNC + j;
+        assign s_axis_tdata[`getvec(512, k)] = s_axis_pf[k].data;
+        assign s_axis_tkeep[`getvec(64, k)]  = s_axis_pf[k].keep;
+        assign s_axis_tuser[`getvec(20, k)]  = {encode_ingress_port_by_pf(i, s_axis_pf[k].user_src), s_axis_pf[k].user_size};
+        assign s_axis_tlast[k]               = s_axis_pf[k].last;
+        assign s_axis_tvalid[k]              = s_axis_pf[k].valid;
+        assign s_axis_pf[k].ready            = s_axis_tready[k];
+      end
+    end
 
-    assign s_axis_pf[i].ready            = s_axis_tready[i];
-  end endgenerate
-
-  generate for (genvar i = 0; i < NUM_CMAC_PORT; i++) begin
-    localparam int j = NUM_PHYS_FUNC + i;
-    assign s_axis_tdata[`getvec(512, j)] = s_axis_cmac[i].data;
-    assign s_axis_tkeep[`getvec(64, j)]  = s_axis_cmac[i].keep;
-    assign s_axis_tuser[`getvec(49, j)]  = {CMAC, s_axis_cmac[i].user_dst, s_axis_cmac[i].user_src, s_axis_cmac[i].user_size};
-    assign s_axis_tlast[j]               = s_axis_cmac[i].last;
-    assign s_axis_tvalid[j]              = s_axis_cmac[i].valid;
-
-    assign s_axis_cmac[i].ready          = s_axis_tready[j];
-  end endgenerate
+    for (genvar i = 0; i < NUM_CMAC_PORT; i++) begin
+      localparam int j = NUM_PHYS_FUNC + i;
+      assign s_axis_tdata[`getvec(512, j)] = s_axis_cmac[i].data;
+      assign s_axis_tkeep[`getvec(64, j)]  = s_axis_cmac[i].keep;
+      assign s_axis_tuser[`getvec(20, j)]  = {encode_ingress_port_by_cmac(s_axis_cmac[i].user_src), s_axis_cmac[i].user_size};
+      assign s_axis_tlast[j]               = s_axis_cmac[i].last;
+      assign s_axis_tvalid[j]              = s_axis_cmac[i].valid;
+      assign s_axis_cmac[i].ready          = s_axis_tready[j];
+    end
+  endgenerate
 
   axis_ingress_switch axis_ingress_switch_inst (
     .s_axis_tvalid (s_axis_tvalid),
@@ -71,16 +72,36 @@ module ingress_switch #(
     .s_decode_err()
   );
 
-  assign m_axis.user_size     = axis_tuser[15:0];
-  assign m_axis.user_src_pf   = axis_tuser[19:16];
-  assign m_axis.user_src_cmac = axis_tuser[31:22];
-  assign m_axis.user_dst_pf   = axis_tuser[35:32];
-  assign m_axis.user_dst_cmac = axis_tuser[47:38];
-
-  assign m_axis.user_from_direction = axis_tuser[48];
-  assign m_axis.user_to_direction   = 0;
+  assign m_axis.user_size         = axis_tuser[15:0];
+  assign m_axis.user_ingress_port = axis_tuser[19:16];
+  assign m_axis.user_egress_port  = '0;
 
   assign m_axis.valid      = axis_tvalid;
   assign m_axis.user_valid = axis_tvalid;
+
+  function automatic logic [3:0] encode_ingress_port_by_pf(
+    input logic qdma_count,
+    input logic [15:0] src
+  );
+    case ({qdma_count, src[3:0]})
+      5'b00001: return 4'b0000;
+      5'b00010: return 4'b0001;
+      5'b00100: return 4'b0010;
+      5'b01000: return 4'b0011;
+      5'b10001: return 4'b0100;
+      5'b10010: return 4'b0101;
+      5'b10100: return 4'b0110;
+      5'b11000: return 4'b0111;
+    endcase
+  endfunction
+
+  function automatic logic [3:0] encode_ingress_port_by_cmac(
+    input logic [15:0] src
+  );
+    case (src[15:6])
+      10'b0000000001: return 4'b1000;
+      10'b0000000010: return 4'b1001;
+    endcase
+  endfunction
 
 endmodule: ingress_switch

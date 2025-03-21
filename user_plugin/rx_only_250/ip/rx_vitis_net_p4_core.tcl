@@ -9,6 +9,11 @@ dict set vitis_net_p4_config CONFIG.AXIS_CLK_FREQ_MHZ    250.0
 dict set vitis_net_p4_config CONFIG.CAM_MEM_CLK_FREQ_MHZ 250.0
 dict set vitis_net_p4_config CONFIG.PKT_RATE             250.0
 dict set vitis_net_p4_config CONFIG.TDATA_NUM_BYTES      64
+dict set vitis_net_p4_config CONFIG.CAM_MEM_CLK_ENABLE   1
 set_property -dict $vitis_net_p4_config [get_ips $vitis_net_p4]
+
+if {[get_property CONFIG.S_AXI_ADDR_WIDTH [get_ips $vitis_net_p4]] == 0} {
+    set_property CONFIG.S_AXI_ADDR_WIDTH 20 [get_ips $vitis_net_p4]
+}
 
 generate_target all [get_ips $vitis_net_p4]

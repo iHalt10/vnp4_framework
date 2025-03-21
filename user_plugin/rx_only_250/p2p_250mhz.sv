@@ -19,7 +19,7 @@ module p2p_250mhz #(
 );
 
   wire axil_aresetn; // Reset is clocked by the 125MHz AXI-Lite clock
-  wire axis_aresetn; // Reset is clocked by the 250MHz AXI-Lite clock
+  wire axis_aresetn; // Reset is clocked by the 125MHz AXI-Stream clock
 
   generic_reset #(
     .NUM_INPUT_CLK  (1),
@@ -34,15 +34,27 @@ module p2p_250mhz #(
   assign axis_aresetn = axil_aresetn;
 
   generate for (genvar i = 0; i < NUM_INTF; i++) begin
-    wire user_metadata_out_valid;
-    wire axis_qdma_c2h_tvalid;
-
-    assign m_axis_qdma_c2h[i].valid = user_metadata_out_valid && axis_qdma_c2h_tvalid;
-
     wire [47:0] axis_qdma_h2c_tuser;
     wire [47:0] axis_qdma_c2h_tuser;
     wire [47:0] axis_adap_tx_250mhz_tuser;
     wire [47:0] axis_adap_rx_250mhz_tuser;
+
+    wire user_metadata_out_valid;
+    wire [47:0] user_metadata_out;
+    reg  [47:0] reg_axis_qdma_c2h_tuser;
+  
+    always_ff @(posedge axis_aclk) begin
+      if (~axis_aresetn) begin
+        reg_axis_qdma_c2h_tuser <= '0;
+      end else begin
+        if (user_metadata_out_valid && !m_axis_qdma_c2h[i].last) begin
+          reg_axis_qdma_c2h_tuser <= user_metadata_out;
+        end else if (m_axis_qdma_c2h[i].last) begin
+          reg_axis_qdma_c2h_tuser <= '0;
+        end
+      end
+    end
+    assign axis_qdma_c2h_tuser = user_metadata_out_valid ? user_metadata_out : reg_axis_qdma_c2h_tuser;
 
     assign axis_qdma_h2c_tuser[15:0]  = s_axis_qdma_h2c[i].user_size;
     assign axis_qdma_h2c_tuser[31:16] = s_axis_qdma_h2c[i].user_src;
@@ -93,7 +105,7 @@ module p2p_250mhz #(
       .user_metadata_in_valid(s_axis_adap_rx_250mhz[i].valid),
 
       .user_metadata_out({
-        axis_qdma_c2h_tuser
+        user_metadata_out
       }),
       .user_metadata_out_valid(user_metadata_out_valid),
 
@@ -106,7 +118,7 @@ module p2p_250mhz #(
       .m_axis_tdata  (m_axis_qdma_c2h[i].data),
       .m_axis_tkeep  (m_axis_qdma_c2h[i].keep),
       .m_axis_tlast  (m_axis_qdma_c2h[i].last),
-      .m_axis_tvalid (axis_qdma_c2h_tvalid),
+      .m_axis_tvalid (m_axis_qdma_c2h[i].valid),
       .m_axis_tready (m_axis_qdma_c2h[i].ready),
 
       .s_axi_araddr  (s_axil.ar_addr),

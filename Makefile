@@ -25,7 +25,7 @@ SYNTH_IP        := 1
 IMPL            := 1
 POST_IMPL       := 1
 
-USER_PLUGIN     := $(abspath user_plugin/rx_only_250)
+USER_PLUGIN     := $(abspath user_plugin/shared_txrx_250)
 
 ## Design parameters
 BUILD_TIMESTAMP := $(shell date +%y%m%d%H%M)

@@ -1,10 +1,16 @@
 #include <core.p4>
 #include <xsa.p4>
 
+const bit<16> TYPE_ETH_CUSTOM_0 = 0x88b5;
+const bit<16> TYPE_ETH_CUSTOM_1 = 0x88b6;
+
 // ****************************************************************************** //
 // *************************** M E T A D A T A ********************************** //
 // ****************************************************************************** //
 struct metadata_t {
+    // *********************** Custom Metadata ********************************** //
+    // NOTE: Sharing user custom metadata between parser/control blocks
+    bit<16> custom; // do not work
     // *********************** System Metadata (Do not delete) ****************** //
     bit<4>  egress_port;
     bit<4>  ingress_port;
@@ -20,8 +26,13 @@ header ethernet_h {
     bit<16> ether_type;
 }
 
+header custom_h {
+    bit<16> data;
+}
+
 struct headers_t {
     ethernet_h ethernet;
+    custom_h   custom;
 }
 
 // ****************************************************************************** //
@@ -38,7 +49,22 @@ parser MyParser(
     }
 
     state parse_ethernet {
+        metadata.custom = 1;
         packet.extract(headers.ethernet);
+        transition select(headers.ethernet.ether_type) {
+            TYPE_ETH_CUSTOM_0: parse_ethernet_custom_0;
+            TYPE_ETH_CUSTOM_1: parse_ethernet_custom_1;
+            default: accept;
+        }
+    }
+
+    state parse_ethernet_custom_0 {
+        metadata.custom = 2;
+        transition accept;
+    }
+
+    state parse_ethernet_custom_1 {
+        metadata.custom = 3;
         transition accept;
     }
 }
@@ -61,6 +87,10 @@ control MyProcessing(
             return;
         }
 
+        headers.custom.data = metadata.packet_length - headers.custom.data;
+        metadata.packet_length = metadata.packet_length + 2;
+        headers.custom.setValid();
+
         if (metadata.ingress_port == 0) {
             metadata.egress_port = 8;
         } else {
@@ -80,6 +110,7 @@ control MyDeparser(
 ) {
     apply {
         packet.emit(headers.ethernet);
+        packet.emit(headers.custom);
     }
 }
 
