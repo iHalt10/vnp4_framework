@@ -1,179 +1,42 @@
-# Vites Networking P4 Framework
-The framework integrates VitisNetP4 with OpenNIC Shell to compile P4 code into hardware IP.
+# Vitis Networking P4 Framework
+With AMD's Vitis Networking P4, you can compile P4 code targeting Xilinx FPGAs.
+However, Vitis Networking P4 only generates IP cores (functional blocks) for packet processing, and to actually function as an FPGA SmartNIC, you need to integrate Vitis Networking P4 with OpenNIC.
 
-## Architectures
+This project - Vitis Networking P4 Framework - automates this integration process.
+In other words, using this Framework, even P4 programmers with no FPGA development experience can run their P4 code on Alveo FPGA SmartNICs.
 
-### rx_only_250
+Currently, this project implements support for all devices supported by OpenNIC.
+However, we have only verified operation on Alveo U50.
+If you encounter any issues with other devices, please let us know.
 
-![rx_only_250](images/rx_only_250.png)
-
-The number of Physical Functions can be modified using `NUM_PHYS_FUNC` in the Makefile.
-The number of CMACs can be modified using `NUM_CMAC_PORT` in the Makefile.
-The maximum number of CMACs depends on the target device and supports the following:
-
-- Max `NUM_CMAC_PORT`:
-    - Alveo U50: 1
-    - Alveo U55N: 2
-    - Alveo U55C: 2
-    - Alveo U200: 2
-    - Alveo U250: 2
-    - Alveo U280: 2
-    - Alveo U45N: 2
-
-Note that `NUM_PHYS_FUNC` and `NUM_CMAC_PORT` must be set to the same value.
-
-When running two instances of Vitis Net P4, they will execute the same P4 program and share the same P4 Table entries.
+## Features
+There are several possible design approaches for combining Vitis Networking P4 IP Blocks with OpenNIC.
+For example, you can run Vitis Networking P4 IP Blocks at 250 MHz or 322 MHz, or separate IP Blocks for TX and RX, etc.
+We have currently implemented an architecture with the simplest configuration where a single Logic Block handling both TX and RX operates at 250 MHz.
 
 ### shared_txrx_250
 
-![shared_txrx_250](images/shared_txrx_250.png)
+![shared_txrx_250_architecture](docs/image/shared_txrx_250.png)
 
-The number of Physical Functions can be modified using `NUM_PHYS_FUNC` in the Makefile, with a maximum support of 4 functions.
-The number of CMACs can be modified using `NUM_CMAC_PORT` in the Makefile.
-The maximum number of CMACs depends on the target device and supports the following:
+> P4 Block: Logic Block implemented with a specific architecture (included Vitis Networking P4 IP)
 
-- Max `NUM_CMAC_PORT`:
-    - Alveo U50: 1
-    - Alveo U55N: 2
-    - Alveo U55C: 2
-    - Alveo U200: 2
-    - Alveo U250: 2
-    - Alveo U280: 2
-    - Alveo U45N: 2
+With this configuration, you can:
 
-## Usage
+- Basic P4 programming
+- Recognize up to 8 Network Interfaces (ethX)
+- Port forwarding (ex. eth0 <-> QSFP28#1, eth0 <-> eth1, QSFP28#1 <-> QSFP28#2)
+- Simple integration of User Externs (automatic loading of user's custom Verilog, SystemVerilog, TCL)
 
-### Preparation
+Additionally, for P4 End Users, we've designed an intuitive project directory structure to place necessary files.
 
-#### Install Vitis/Vivado 2023.2.2
+## Getting Started
 
-For GUI installation, enable the `Vitis Networking P4` checkbox under `Design Tools`.
-For CLI installation, modify the `Modules=` entry in `install_config.txt` from `Vitis Networking P4:0` to `Vitis Networking P4:1`.
+First, it's recommended to understand the sample project based on the following Design Spec.
+Then, create your own VNP4 Project by referring to the sample projects.
 
-#### Obtain Xilinx IP Licenses
-
-- CMAC license
-    - [cmac-license (Github: OpenNIC Shell)](https://github.com/Xilinx/open-nic-shell?tab=readme-ov-file#cmac-license)
-    - [UltraScale+ 100G Ethernet Subsystem (Xilinx)](https://japan.xilinx.com/products/intellectual-property/cmac_usplus.html)
-- Vitis Networking P4 (sdnet_p4) license
-    - [Vitis Networking P4 (Xilinx)](https://japan.xilinx.com/products/intellectual-property/ef-di-vitisnetp4.html)
-
-#### Clone Project
-
-```shell
-$ git clone https://github.com/iHalt10/vnp4_framework
-$ cd vnp4_framework
-$ git submodule update --init --recursive
-```
-
-### Build OpenNIC Shell with User Plugins
-
-```shell
-$ make
-```
-
-#### Build Options
-The following Makefile options are available for building:
-
-```makefile
-###########################################################################
-##### OpenNIC Build Script Options (open-nic-shell/script/build.tcl)
-###########################################################################
-## Build options
-BOARD           := au50
-TAG             := vnp4_nic
-JOBS            := $(shell nproc)
-SYNTH_IP        := 1
-IMPL            := 1
-POST_IMPL       := 1
-
-USER_PLUGIN     := $(abspath user_plugin/rx_only_250)
-
-## Design parameters
-BUILD_TIMESTAMP := $(shell date +%y%m%d%H%M)
-MIN_PKT_LEN     := 64
-MAX_PKT_LEN     := 1514
-NUM_PHYS_FUNC   := 1
-NUM_QDMA        := 1
-NUM_CMAC_PORT   := 1
-```
-
-For detailed explanation of these options, refer to [Build Script Options (Github: OpenNIC Shell)](https://github.com/Xilinx/open-nic-shell?tab=readme-ov-file#build-script-options).
-
-For the Architecture's `USER_PLUGIN`, specify one of the following:
-- rx_only_250: `$(abspath user_plugin/rx_only_250)`
-- shared_txrx_250: `$(abspath user_plugin/shared_txrx_250)`
-
-### Program MCS/BIT Files
-
-```shell
-$ make program-bit # and warm reboot
-# or
-$ make program-mcs # and cold reboot
-```
-
-#### Program Options
-The following Makefile options are available for programming:
-
-```makefile
-###########################################################################
-##### Program Options
-###########################################################################
-PROGRAM_HW_SERVER   := 127.0.0.1:3121
-PROGRAM_DEVICE_NAME := xcu50_u55n_0
-PROGRAM_FLASH_PART  := mt25qu01g-spi-x1_x2_x4
-```
-
-### Build Management Table Tools (Software)
-
-```shell
-$ make sw
-```
-The following binaries will be generated:
-
-- rx_only_250: sw/rx_only_250/bin
-    - find_entry (doesn't work)
-    - get_table_mode
-    - insert
-- shared_txrx_250: sw/shared_txrx_250/bin
-    - find_entry (doesn't work)
-    - get_table_mode
-    - insert
-
-### Build OpenNIC Driver
-
-```shell
-$ cd open-nic-driver
-$ make
-$ sudo insmod onic.ko
-```
-
-For detailed information, refer to [OpenNIC Driver Documentation (Github: OpenNIC Driver)](https://github.com/Xilinx/open-nic-driver).
-
-### Management Table
-
-- Supported P4 tables in Look-Up Engine:
-    - [TinyBCAM](https://docs.amd.com/r/en-US/ug1308-vitis-p4-user-guide/TinyBCAM)
-        - Key width: up to 1024 bits
-        - Response width: up to 1024 bits
-        - Size: Up to 32 entries
-        - Range key match type not supported
-    - [TinyTCAM](https://docs.amd.com/r/en-US/ug1308-vitis-p4-user-guide/TinyTCAM)
-        - Key width: up to 1024 bits
-        - Response width: up to 1024 bits
-        - Size: Up to 32 entries
-        - Range key match type not supported
-
-### Device Setup
-
-```shell
-$ lspci -vd 10ee:
-xx:xx.x Network controller: Xilinx Corporation Device 903f
-$ sudo setpci -s xx:xx.x COMMAND=0x3
-```
-
-### Insert Table Entry
-
-```shell
-$ ./insert /sys/bus/pci/devices/xxxx:xx:xx.x/resource2
-```
+- shared_txrx_250
+    - [Design Spec](docs/shared_txrx_250/design_spec.md)
+    - Sample Projects
+        - [VNP4-Simple](https://github.com/iHalt10/vnp4_simple) - Simplest implementation
+        - [VNP4-Table](https://github.com/iHalt10/vnp4_table) - Implementation of tables and controller
+        - [VNP4-UserExtern](https://github.com/iHalt10/vnp4_user_extern) - Implementation of User Extern

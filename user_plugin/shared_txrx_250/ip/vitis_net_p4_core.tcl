@@ -1,14 +1,31 @@
-set p4_file main.p4
-set vitis_net_p4 vitis_net_p4_core
+source "$user_plugin/scripts/get_files.tcl"
 
-create_ip -name vitis_net_p4 -vendor xilinx.com -library ip -module_name $vitis_net_p4
+set vitis_net_p4_core_ip "$build_dir/vivado_ip/custom/vitis_net_p4_core"
 
-set vitis_net_p4_config [dict create]
-dict set vitis_net_p4_config CONFIG.P4_FILE              "$user_plugin/p4/$p4_file"
-dict set vitis_net_p4_config CONFIG.AXIS_CLK_FREQ_MHZ    250.0
-dict set vitis_net_p4_config CONFIG.CAM_MEM_CLK_FREQ_MHZ 250.0
-dict set vitis_net_p4_config CONFIG.PKT_RATE             250.0
-dict set vitis_net_p4_config CONFIG.TDATA_NUM_BYTES      64
-set_property -dict $vitis_net_p4_config [get_ips $vitis_net_p4]
+if {![file exists "$vitis_net_p4_core_ip/vitis_net_p4_core.xci"]} {
+    error "Please execute 'make generate-p4-ip' and 'make alias-p4-ip'."
+}
 
-generate_target all [get_ips $vitis_net_p4]
+read_ip -quiet "$vitis_net_p4_core_ip/vitis_net_p4_core.xci"
+lappend include_dirs "$vitis_net_p4_core_ip/src/verilog"
+
+set user_externs_path "$vitis_net_p4_core_ip/src/verilog/user_externs"
+set files [get_files "$user_externs_path"]
+
+foreach file $files {
+    set ext [file extension $file]
+    if {$ext == ".sv" || $ext == ".v" || $ext == ".svh" || $ext == ".vh"} {
+        puts "Loading Verilog file: $file"
+        read_verilog -quiet $file
+    } elseif {$ext == ".tcl"} {
+        puts "Executing TCL script: $file"
+        if {[catch {source $file} result]} {
+            error "Error: $result"
+        }
+    } elseif {$ext == ".xdc"} {
+        puts "Loading constraint file: $file"
+        read_xdc $file
+    } else {
+        puts "Unsupported extension ($ext): $file"
+    }
+}
