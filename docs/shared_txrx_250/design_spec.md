@@ -90,15 +90,29 @@ The range for `NUM_CMAC_PORT` is "1 ~ 2", but the maximum number depends on the 
 ## User Metadata
 
 ```c
-struct metadata_t {
-    // *********************** Custom Metadata ********************************** //
-    // NOTE: Sharing user custom metadata between parser/control blocks
-    // ...
-    // *********************** System Metadata (Do not delete) ****************** //
+// ****************************************************************************** //
+// *************************** M E T A D A T A ********************************** //
+// ****************************************************************************** //
+// *********************** U S E R    M E T A D A T A *************************** //
+struct user_metadata_t {
+    bit<1> pad; // NOTE: Add this because an empty struct causes an error (Removable)
+}
+
+// ********************** S Y S T E M    M E T A D A T A ************************ //
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////// Do Not Touch ////////////////////////////////////
+struct system_metadata_t {
     bit<9>  egress_port;
     bit<9>  ingress_port;
     bit<16> packet_length;
 }
+
+struct metadata_t {
+    user_metadata_t user;
+    system_metadata_t system;
+}
+////////////////////////////////// Do Not Touch ////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 ```
 
 For `egress_port` and `ingress_port` values, use the "Port ID" from "Ports Mapping".
